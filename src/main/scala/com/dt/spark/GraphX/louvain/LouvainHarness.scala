@@ -38,23 +38,56 @@ import org.graphstream.graph.implementations._
 class  LouvainHarness(minProgress:Int,progressCounter:Int) {
 
   
-  def run[VD: ClassTag](sc:SparkContext,graph:Graph[VD,Long]) = {
+  def run[VD: ClassTag](sc:SparkContext,graph:Graph[VD,(Long,Long)]) = {
     
     var louvainGraph = LouvainCore.createLouvainGraph(graph)
-    
     var level = -1  // number of times the graph has been compressed
-	var q = -1.0    // current modularity value
-	var halt = false
+	  var q = -1.0    // current modularity value
+	  var qNoWeight = -1.0
+	  var halt = false
+	  // this is a new feature to record the times of the iteration
+	  var iteration=1
+	  
     do {
 	  level += 1
 	  println(s"\nStarting Louvain level $level")
-	  
+	//  val tmp1=louvainGraph.vertices.collect()
+  //	tmp1.foreach(println)
 	  // label each vertex with its best community choice at this level of compression
-	  val (currentQ,currentGraph,passes) = LouvainCore.louvain(sc, louvainGraph,minProgress,progressCounter)
-	  louvainGraph.unpersistVertices(blocking=false)
-	  louvainGraph=currentGraph
+	  if (iteration==3)
+	  {
+  	  val (currentQ,currentGraph,passes) = LouvainCore.louvain(sc, louvainGraph,minProgress,progressCounter)
+  	  louvainGraph.unpersistVertices(blocking=false)
+  	  louvainGraph=currentGraph
+  	 // val tmp=louvainGraph.vertices.collect()
+  	 // tmp.foreach(println)
+  	  //saveLevel(sc,level,currentQ,louvainGraph)
+  	  if (passes > 1 && currentQ > q + 0.001 ){ 
+	        q = currentQ
+	        louvainGraph = LouvainCore.compressGraph(louvainGraph)
+	        
+	      }
+	    else {
+	      halt = true
+	      }
+	  }
+	  else
+	  {
+  	    val (currentQ,currentGraph,passes) = LouvainCore.louvainNoWeight(sc, louvainGraph,minProgress,progressCounter)
+  	    louvainGraph.unpersistVertices(blocking=false)
+  	    louvainGraph=currentGraph
+  	      val tmp=louvainGraph.vertices.collect()
+  	      tmp.foreach(println)
+  	    //saveLevel(sc,level,currentQ,louvainGraph)
+  	    if (passes > 1 && currentQ > qNoWeight + 0.001 ){ 
+	        qNoWeight = currentQ
+	        louvainGraph = LouvainCore.compressGraph(louvainGraph)
+	        }
+	      else {
+	        halt = true
+	      }
+	  }
 	  
-	  saveLevel(sc,level,currentQ,louvainGraph)
 	  
 //	System.setProperty("org.graphstream.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer")
 	  
@@ -88,14 +121,8 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
 	  // If modularity was increased by at least 0.001 compress the graph and repeat
 	  // halt immediately if the community labeling took less than 3 passes
 	  //println(s"if ($passes > 2 && $currentQ > $q + 0.001 )")
-	  if (passes > 2 && currentQ > q + 0.001 ){ 
-	    q = currentQ
-	    louvainGraph = LouvainCore.compressGraph(louvainGraph)
-	  }
-	  else {
-	    halt = true
-	  }
-	 
+
+	 iteration=iteration+1
 	}while ( !halt )
 	finalSave(sc,level,q,louvainGraph)  
   }
@@ -106,7 +133,7 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
    * 
    * override to specify save behavior
    */
-  def saveLevel(sc:SparkContext,level:Int,q:Double,graph:Graph[VertexState,Long]) = {
+  def saveLevel(sc:SparkContext,level:Int,q:Double,graph:Graph[VertexState,(Long,Long)]) = {
     
   }
   
@@ -115,7 +142,7 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
    * 
    * override to specify save behavior
    */
-  def finalSave(sc:SparkContext,level:Int,q:Double,graph:Graph[VertexState,Long]) = {
+  def finalSave(sc:SparkContext,level:Int,q:Double,graph:Graph[VertexState,(Long,Long)]) = {
     
   }
   

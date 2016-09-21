@@ -9,7 +9,7 @@ import org.apache.spark.graphx._
 
 // specify command line options and their defaults
 case class Config(
-    input:String = "/home/zhoukun/Desktop/testnn.txt",
+    input:String = "/home/zhoukun/Desktop/test1.txt",
     output: String = "/home/zhoukun/Desktop",
     master:String="local",
     appName:String="graphX analytic",
@@ -98,12 +98,12 @@ object Main {
 	     // tokens.foreach { x => println(s"$x") }
 	     // println(tokens.length)
 	      tokens.length match { //this is a part 如果是IPaddress 则转到long 如果是普通的string，直接转到Long. 其实就是算出节点的ID
-	        case 2 => {new Edge(inputHashFunc(tokens(0)),inputHashFunc(tokens(1)),1L)}
-	        case 3 => {new Edge(inputHashFunc(tokens(0)),inputHashFunc(tokens(1)),tokens(2).toLong)}
+	        case 2 => {new Edge(inputHashFunc(tokens(0)),inputHashFunc(tokens(1)),new Tuple2(1L,1L))}
+	        case 3 => {new Edge(inputHashFunc(tokens(0)),inputHashFunc(tokens(1)),new Tuple2(tokens(2).toLong,1L))} 
 	        case _ => {throw new IllegalArgumentException("invalid input line: "+row)}
 	      }
 	   })	   
-	
+	 
 	   val temp=edgeRDD.collect()
 	   //println(s"total rows:" + edgeRDD.count())
 	// if the parallelism option was set map the input to the correct number of partitions,
