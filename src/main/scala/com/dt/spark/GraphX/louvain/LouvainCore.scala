@@ -308,7 +308,7 @@ object LouvainCore {
   }
   
   
-  
+ 
   
   ////////////////////////////////done///////////////////////////////////////////////////
   /**
@@ -542,6 +542,80 @@ object LouvainCore {
     
    
     
+  }
+  
+  // this funciton is used to trim the graph, to find the comminity kernel
+  // the kernel's feature is that the any three vertices in the graph has a tiangle.
+  def trimVertices(sc:SparkContext,graph:Graph[VertexState,(Long,Long)]):(Double,Graph[VertexState,(Long,Long)])={
+    var louvainGraph = graph.cache()
+    louvainGraph.edges.foreach(println)
+    louvainGraph.vertices.foreach(println)
+    var CurrentQ=0.0
+    val msgCommunity=louvainGraph.aggregateMessages[Map[Long,Long]](sendMsgCommunity, mergeMsgCommunity)
+    val temp=msgCommunity.collect()
+    temp.foreach(println)
+    val vertices=louvainGraph.vertices.innerJoin(msgCommunity)((vid,vdata,msgs)=>{
+      val community=vdata.community
+      val vstate=vdata
+      val newmsg=msgs.count(x => (x._2==community))
+      if (newmsg<2)
+      { 
+        
+        vstate.community=vid
+        vstate.communitySigmaTot=vstate.nodeWeight+vstate.internalWeight
+        vstate.communitySigmaTotNoWeight=vstate.nodeWeightNoWeight+vstate.internalWeightNoWeight
+      }
+      else
+      { 
+        // for a triangle the the vstate.community retains otherwise,changed to the vid
+        
+      }
+      vstate
+      })
+    val tmp=vertices.first()
+    louvainGraph = louvainGraph.outerJoinVertices(vertices)((vid, old, newOpt) => newOpt.getOrElse(old))
+    val graphWeight = louvainGraph.vertices.values.map(vdata=> vdata.internalWeight+vdata.nodeWeight).reduce(_+_)
+    // Use each vertex's neighboring community data to calculate the global modularity of the graph
+    val newVerts = louvainGraph.vertices.mapValues((vid,vdata)=> {
+        // sum the nodes internal weight and all of its edges that are in its community
+        val community = vdata.community
+        var k_i_in = vdata.internalWeight
+        var sigmaTot = vdata.communitySigmaTot.toDouble
+        val M = graphWeight
+        val k_i = vdata.nodeWeight + vdata.internalWeight
+        var q = (k_i_in.toDouble / M) -  ( ( sigmaTot *k_i) / math.pow(M, 2) )
+        //println(s"vid: $vid community: $community $q = ($k_i_in / $M) -  ( ($sigmaTot * $k_i) / math.pow($M, 2) )")
+        if (q < 0) 0 else q
+    })  
+    
+   //val te=newVerts.collect()
+    CurrentQ = newVerts.values.reduce(_+_)
+    return (CurrentQ,louvainGraph)
+  }
+  
+  
+   /**
+   * create the messages passed between each vertex to tell the same community
+   */
+
+  
+  private def sendMsgCommunity( et:EdgeContext[VertexState,(Long,Long),Map[Long,Long]] ): Unit={
+    et.sendToDst(Map(et.srcId->et.srcAttr.community))
+    et.sendToSrc(Map(et.dstId->et.dstAttr.community)) 
+   
+  }
+  
+  private def mergeMsgCommunity(m1:Map[Long,Long],m2:Map[Long,Long]) ={
+   val newMap = scala.collection.mutable.HashMap[Long,Long]()
+    m1.foreach({case (k,v)=>
+      if (newMap.contains(k)) newMap(k) = newMap(k) + v
+      else newMap(k) = v
+    })
+    m2.foreach({case (k,v)=>
+      if (newMap.contains(k)) newMap(k) = newMap(k) + v
+      else newMap(k) = v
+    })
+    newMap.toMap
   }
   
 

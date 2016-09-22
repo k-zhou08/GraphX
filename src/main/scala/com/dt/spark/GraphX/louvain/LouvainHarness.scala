@@ -54,18 +54,34 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
 	//  val tmp1=louvainGraph.vertices.collect()
   //	tmp1.foreach(println)
 	  // label each vertex with its best community choice at this level of compression
-	  if (iteration==3)
+	  if (iteration==1)
 	  {
   	  val (currentQ,currentGraph,passes) = LouvainCore.louvain(sc, louvainGraph,minProgress,progressCounter)
+  	  val temp=currentGraph.vertices.foreach(println)
   	  louvainGraph.unpersistVertices(blocking=false)
   	  louvainGraph=currentGraph
+  	  var currentQ2=currentQ
+  	  val (currentQ1,currentGraph1) = LouvainCore.trimVertices(sc, louvainGraph)
+  	  currentGraph1.vertices.foreach(println)
+  	  
+  	  louvainGraph.unpersistVertices(blocking=false)
+  	  louvainGraph=currentGraph1
+  	  var currentQ3=currentQ1
+  	  while(currentQ2!=currentQ3)
+  	  {
+  	    currentQ2= currentQ3
+  	    val (currentQ1,currentGraph1) = LouvainCore.trimVertices(sc, louvainGraph)
+  	     currentGraph1.vertices.foreach(println)
+  	    louvainGraph.unpersistVertices(blocking=false)
+  	    louvainGraph=currentGraph1
+  	    currentQ3=currentQ1
+  	  }
   	 // val tmp=louvainGraph.vertices.collect()
   	 // tmp.foreach(println)
   	  //saveLevel(sc,level,currentQ,louvainGraph)
   	  if (passes > 1 && currentQ > q + 0.001 ){ 
 	        q = currentQ
-	        louvainGraph = LouvainCore.compressGraph(louvainGraph)
-	        
+	        louvainGraph = LouvainCore.compressGraph(louvainGraph)      
 	      }
 	    else {
 	      halt = true
