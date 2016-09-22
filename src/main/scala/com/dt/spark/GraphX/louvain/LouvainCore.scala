@@ -75,12 +75,12 @@ object LouvainCore {
     val graphWeight = louvainGraph.vertices.values.map(vdata=> vdata.internalWeight+vdata.nodeWeight).reduce(_+_)
     val temp=louvainGraph.vertices.values.collect();
     var totalGraphWeight = sc.broadcast(graphWeight) 
-    println("totalEdgeWeight: "+totalGraphWeight.value)
+    //println("totalEdgeWeight: "+totalGraphWeight.value)
     
     val graphWeightNoWeight = louvainGraph.vertices.values.map(vdata=> vdata.internalWeightNoWeight+vdata.nodeWeightNoWeight).reduce(_+_)
      
     var totalGraphWeightNoWeight = sc.broadcast(graphWeightNoWeight) 
-    println("totalEdgeWeight: "+totalGraphWeightNoWeight.value)
+    //println("totalEdgeWeight: "+totalGraphWeightNoWeight.value)
     
     
     // gather community information from each vertex's local neighborhood
@@ -152,14 +152,14 @@ object LouvainCore {
 	   if (even) updated = 0
 	   updated = updated + louvainGraph.vertices.filter(_._2.changed).count 
 	   if (!even) {
-	     println("  # vertices moved: "+java.text.NumberFormat.getInstance().format(updated))
+	     //println("  # vertices moved: "+java.text.NumberFormat.getInstance().format(updated))
 	     if (updated >= updatedLastPhase - minProgress) stop += 1
 	     updatedLastPhase = updated
 	   }
 
    
     } while ( stop <= progressCounter && (even ||   (updated > 0 && count < maxIter)))
-    println("\nCompleted in "+count+" cycles")
+    //println("\nCompleted in "+count+" cycles")
    
    
     // Use each vertex's neighboring community data to calculate the global modularity of the graph
@@ -217,12 +217,12 @@ object LouvainCore {
 	   even = ! even	   
 	  
 	   // label each vertex with its best community based on neighboring community information
-	   msgRDD.foreach(println)
-	   louvainGraph.edges.foreach(println)
+	   //msgRDD.foreach(println)
+	   //louvainGraph.edges.foreach(println)
 	   
 	   val labeledVerts = louvainVertJoinNoWeight(louvainGraph,msgRDD,totalGraphWeightNoWeight,even).cache()  
 	    
-	   labeledVerts.foreach(println)
+	 //  labeledVerts.foreach(println)
 	   // calculate new sigma total value for each community (total weight of each community)
 	   val communtiyUpdate = labeledVerts
 	    .map( {case (vid,vdata) => (vdata.community,vdata.nodeWeight+vdata.internalWeight)})
@@ -412,7 +412,7 @@ object LouvainCore {
 	    //println(s"this is a test for the vadata...        $vid")
 	      msgs.foreach({ case( (communityId,sigmaTotal),communityEdgeWeight ) => 
 	      	val deltaQ = q(startingCommunityId, communityId, sigmaTotal, communityEdgeWeight, vdata.nodeWeightNoWeight, vdata.internalWeightNoWeight,totalEdgeWeightNoWeight.value)
-	       println("   communtiy: "+communityId+" sigma:"+sigmaTotal+" edgeweight:"+communityEdgeWeight+"  q:"+deltaQ)
+	       //println("   communtiy: "+communityId+" sigma:"+sigmaTotal+" edgeweight:"+communityEdgeWeight+"  q:"+deltaQ)
 	        if (deltaQ > maxDeltaQ || (deltaQ > 0 && (deltaQ == maxDeltaQ && communityId > bestCommunity))){
 	          maxDeltaQ = deltaQ
 	          bestCommunity = communityId
@@ -548,29 +548,33 @@ object LouvainCore {
   // the kernel's feature is that the any three vertices in the graph has a tiangle.
   def trimVertices(sc:SparkContext,graph:Graph[VertexState,(Long,Long)]):(Double,Graph[VertexState,(Long,Long)])={
     var louvainGraph = graph.cache()
-    louvainGraph.edges.foreach(println)
-    louvainGraph.vertices.foreach(println)
+   // louvainGraph.edges.foreach(println)
+   // louvainGraph.vertices.foreach(println)
     var CurrentQ=0.0
     val msgCommunity=louvainGraph.aggregateMessages[Map[Long,Long]](sendMsgCommunity, mergeMsgCommunity)
-    val temp=msgCommunity.collect()
-    temp.foreach(println)
+   //ommunity.collect()
+  //  temp.foreach(println)
+   // val msgtemp=msgCommunity.first()
+   //al count=msgtemp._2.count(x => (x._2==msgtemp._1))
     val vertices=louvainGraph.vertices.innerJoin(msgCommunity)((vid,vdata,msgs)=>{
       val community=vdata.community
-      val vstate=vdata
+      
       val newmsg=msgs.count(x => (x._2==community))
+      
       if (newmsg<2)
-      { 
-        
-        vstate.community=vid
-        vstate.communitySigmaTot=vstate.nodeWeight+vstate.internalWeight
-        vstate.communitySigmaTotNoWeight=vstate.nodeWeightNoWeight+vstate.internalWeightNoWeight
+      {
+       // println("not than 2")
+        vdata.community=vid
+        vdata.communitySigmaTot=vdata.nodeWeight+vdata.internalWeight
+        vdata.communitySigmaTotNoWeight=vdata.nodeWeightNoWeight+vdata.internalWeightNoWeight
+        vdata
       }
       else
-      { 
-        // for a triangle the the vstate.community retains otherwise,changed to the vid
-        
+      {
+      //  println("bigger than 2")
       }
-      vstate
+    
+      vdata
       })
     val tmp=vertices.first()
     louvainGraph = louvainGraph.outerJoinVertices(vertices)((vid, old, newOpt) => newOpt.getOrElse(old))

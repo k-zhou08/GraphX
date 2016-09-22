@@ -75,11 +75,12 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
   	    louvainGraph.unpersistVertices(blocking=false)
   	    louvainGraph=currentGraph1
   	    currentQ3=currentQ1
+  	    println(currentQ1)
   	  }
   	 // val tmp=louvainGraph.vertices.collect()
   	 // tmp.foreach(println)
-  	  //saveLevel(sc,level,currentQ,louvainGraph)
-  	  if (passes > 1 && currentQ > q + 0.001 ){ 
+  	  saveLevel(sc,level,currentQ,louvainGraph)
+  	  if (passes > 2 && currentQ > q + 0.001 ){ 
 	        q = currentQ
 	        louvainGraph = LouvainCore.compressGraph(louvainGraph)      
 	      }
@@ -92,10 +93,10 @@ class  LouvainHarness(minProgress:Int,progressCounter:Int) {
   	    val (currentQ,currentGraph,passes) = LouvainCore.louvainNoWeight(sc, louvainGraph,minProgress,progressCounter)
   	    louvainGraph.unpersistVertices(blocking=false)
   	    louvainGraph=currentGraph
-  	      val tmp=louvainGraph.vertices.collect()
-  	      tmp.foreach(println)
-  	    //saveLevel(sc,level,currentQ,louvainGraph)
-  	    if (passes > 1 && currentQ > qNoWeight + 0.001 ){ 
+  	    //  val tmp=louvainGraph.vertices.collect()
+  	    //  tmp.foreach(println)
+  	    saveLevel(sc,level,currentQ,louvainGraph)
+  	    if (passes > 2 && currentQ > qNoWeight + 0.001 ){ 
 	        qNoWeight = currentQ
 	        louvainGraph = LouvainCore.compressGraph(louvainGraph)
 	        }
